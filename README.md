@@ -6,6 +6,10 @@ AgentFlow takes unstructured business documents (invoices, purchase orders, cont
 
 The design goal: straight-through automation when the system is sure, a paused, auditable workflow waiting for a person when it isn't. That property is what makes agentic automation deployable against real business processes.
 
+![Demo: straight-through processing, human-review interrupt, and checkpoint resume](docs/demo.gif)
+
+*(recorded with [VHS](https://github.com/charmbracelet/vhs) from [docs/demo.tape](docs/demo.tape) — reproducible against a mock-mode server)*
+
 ## Architecture
 
 ```mermaid
