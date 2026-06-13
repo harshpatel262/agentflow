@@ -1,5 +1,7 @@
 # AgentFlow
 
+[![CI](https://github.com/harshpatel262/agentflow/actions/workflows/ci.yml/badge.svg)](https://github.com/harshpatel262/agentflow/actions/workflows/ci.yml)
+
 **Multi-agent workflow orchestration engine for business process automation**, built on [LangGraph](https://github.com/langchain-ai/langgraph) and FastAPI.
 
 AgentFlow takes unstructured business documents (invoices, purchase orders, contracts, support requests) and runs them through a supervised pipeline of specialized AI agents — classification, structured extraction, validation — with **human-in-the-loop approval gates** for anything the agents are not confident about.
