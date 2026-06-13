@@ -36,6 +36,7 @@ flowchart LR
 |---|---|---|
 | `POST` | `/workflows` | Run a document through the pipeline (synchronous) |
 | `POST` | `/workflows/stream` | Same, streaming each agent's progress as Server-Sent Events |
+| `GET` | `/workflows` | List workflows (newest first); `?awaiting_review=true` for the review queue |
 | `GET` | `/workflows/{id}` | Current state, including pending-review status and audit trail |
 | `POST` | `/workflows/{id}/decision` | Approve/reject a paused workflow; execution resumes from checkpoint |
 | `GET` | `/health` | Liveness |
@@ -104,7 +105,8 @@ docker build -t agentflow . && docker run -p 8000:8000 -e AGENTFLOW_MOCK_MODE=tr
 
 - [ ] Postgres checkpointer for durable multi-instance deployments
 - [ ] Pluggable workflow definitions (YAML → graph) for new business processes
-- [ ] Reviewer web UI for the human-in-the-loop queue
+- [x] Review-queue API (`GET /workflows?awaiting_review=true`) — backing for a reviewer UI
+- [ ] Reviewer web UI on top of the review-queue API
 - [ ] LangSmith tracing integration & per-agent evaluation suites
 
 ## License

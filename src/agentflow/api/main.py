@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import uuid
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -34,6 +34,11 @@ def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="AgentFlow", version=__version__)
     engine = build_graph(get_llm(settings), settings)
+
+    # Ordered registry of workflow ids, so the review queue can be listed.
+    # The checkpointer stores state per thread but does not enumerate threads;
+    # a durable deployment would back this with the checkpointer's store.
+    workflow_ids: list[str] = []
 
     def _config(workflow_id: str) -> dict:
         return {"configurable": {"thread_id": workflow_id}}
@@ -62,16 +67,45 @@ def create_app() -> FastAPI:
     @app.post("/workflows", status_code=201)
     def start_workflow(request: StartWorkflowRequest) -> dict:
         workflow_id = str(uuid.uuid4())
+        workflow_ids.append(workflow_id)
         engine.invoke(
             {"workflow_id": workflow_id, "document": request.document, "source": request.source},
             _config(workflow_id),
         )
         return _snapshot(workflow_id)
 
+    @app.get("/workflows")
+    def list_workflows(
+        awaiting_review: bool | None = Query(
+            default=None, description="filter to workflows paused for human review"
+        ),
+    ) -> dict:
+        """List workflows, newest first — the backing query for a review queue."""
+        items = []
+        for wid in reversed(workflow_ids):
+            state = engine.get_state(_config(wid))
+            if not state.values:
+                continue
+            paused = bool(state.next)
+            if awaiting_review is not None and paused != awaiting_review:
+                continue
+            values = state.values
+            items.append(
+                {
+                    "workflow_id": wid,
+                    "status": "needs_review" if paused else values.get("status"),
+                    "awaiting_human_review": paused,
+                    "category": values.get("category"),
+                    "confidence": values.get("confidence"),
+                }
+            )
+        return {"count": len(items), "workflows": items}
+
     @app.post("/workflows/stream")
     def stream_workflow(request: StartWorkflowRequest) -> StreamingResponse:
         """Run a workflow, streaming each agent's update as a Server-Sent Event."""
         workflow_id = str(uuid.uuid4())
+        workflow_ids.append(workflow_id)
 
         def event_stream():
             yield f"event: started\ndata: {json.dumps({'workflow_id': workflow_id})}\n\n"

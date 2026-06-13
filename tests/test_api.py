@@ -53,6 +53,31 @@ def test_unknown_workflow_returns_404(client):
     assert client.get("/workflows/nope").status_code == 404
 
 
+def test_list_workflows_and_review_queue(client):
+    client.post("/workflows", json={"document": INVOICE})   # completes straight through
+    review = client.post("/workflows", json={"document": UNCLEAR}).json()  # needs review
+
+    listing = client.get("/workflows").json()
+    assert listing["count"] == 2
+
+    queue = client.get("/workflows", params={"awaiting_review": "true"}).json()
+    assert queue["count"] == 1
+    assert queue["workflows"][0]["workflow_id"] == review["workflow_id"]
+    assert queue["workflows"][0]["awaiting_human_review"] is True
+
+    # resolving the workflow removes it from the review queue
+    client.post(f"/workflows/{review['workflow_id']}/decision", json={"approved": True})
+    assert client.get("/workflows", params={"awaiting_review": "true"}).json()["count"] == 0
+
+
+def test_list_workflows_newest_first(client):
+    first = client.post("/workflows", json={"document": INVOICE}).json()
+    second = client.post("/workflows", json={"document": INVOICE}).json()
+    workflows = client.get("/workflows").json()["workflows"]
+    assert workflows[0]["workflow_id"] == second["workflow_id"]
+    assert workflows[1]["workflow_id"] == first["workflow_id"]
+
+
 def test_streaming_emits_agent_updates(client):
     with client.stream("POST", "/workflows/stream", json={"document": INVOICE}) as response:
         text = "".join(response.iter_text())
